@@ -45,3 +45,11 @@ This project was a fun, **small vibe-coding** experiment, but there's plenty mor
 This project has enabled me to create a **localized version** of an LLM-based chat application, giving me full control over the chat experience and the data it processes. It’s a great first step towards building more advanced AI-powered applications without relying on cloud-based services. 
 
 Feel free to fork this repo and experiment with your own tweaks!
+
+### Update 1.1
+
+Added formatting options on the responses
+Added font styles 
+Added font size buttons to increase/decrease size
+Added button to copy last response
+Added button to export chat

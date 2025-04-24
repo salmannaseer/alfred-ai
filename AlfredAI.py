@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import scrolledtext, filedialog
+from tkinter import scrolledtext, filedialog, ttk
 import requests
 import json
 import threading
@@ -24,22 +24,49 @@ def extract_text_from_txt(file_path):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Alfred Chat")
-        self.state("zoomed")  # Maximized with title bar
+        self.title("Alfred AI")
+        self.state("zoomed")
 
         self.chat_history = []
-        self.context_attachment = ""  # Store uploaded file text
+        self.context_attachment = ""
+        self.font_size = 12
+        self.font_family = "Segoe UI"
+        self.last_ai_response = ""
 
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
+        # === Top Toolbar ===
+        toolbar = tk.Frame(self)
+        toolbar.pack(fill=tk.X, padx=10, pady=(5, 0))
+
+        spacer = tk.Label(toolbar, text="")
+        spacer.pack(side=tk.LEFT, expand=True)
+
+        self.export_button = tk.Button(toolbar, text="Export Chat", command=self.export_chat)
+        self.export_button.pack(side=tk.RIGHT, padx=(5, 0))
+
+        self.copy_button = tk.Button(toolbar, text="Copy Last Response", command=self.copy_last_response)
+        self.copy_button.pack(side=tk.RIGHT, padx=(5, 0))
+
+        decrease_btn = tk.Button(toolbar, text="A-", command=self.decrease_font)
+        decrease_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        increase_btn = tk.Button(toolbar, text="A+", command=self.increase_font)
+        increase_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        self.font_dropdown = ttk.Combobox(toolbar, values=[
+            "Comic Sans MS", "Segoe UI", "Times New Roman", "Arial", "Calibri", "sans-serif"
+        ], state="readonly")
+        self.font_dropdown.set(self.font_family)
+        self.font_dropdown.pack(side=tk.RIGHT, padx=(5, 0))
+        self.font_dropdown.bind("<<ComboboxSelected>>", self.change_font)
 
         # === Output Field ===
-        self.output_field = scrolledtext.ScrolledText(self, wrap=tk.WORD)
-        self.output_field.grid(row=0, column=0, columnspan=3, sticky="nsew", padx=10, pady=10)
+        self.output_field = scrolledtext.ScrolledText(self, wrap=tk.WORD, font=(self.font_family, self.font_size))
+        self.output_field.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
+        self.output_field.tag_configure("bold", font=(self.font_family, self.font_size, "bold"))
 
         # === Input Frame ===
         self.input_frame = tk.Frame(self)
-        self.input_frame.grid(row=1, column=0, columnspan=3, sticky="ew", padx=10, pady=10)
+        self.input_frame.pack(fill=tk.X, padx=10, pady=10)
         self.input_frame.columnconfigure(0, weight=1)
 
         self.input_field = tk.Entry(self.input_frame)
@@ -51,6 +78,27 @@ class App(tk.Tk):
 
         self.attach_button = tk.Button(self.input_frame, text="Attach", command=self.upload_file, width=10)
         self.attach_button.grid(row=0, column=2)
+
+    def change_font(self, event=None):
+        self.font_family = self.font_dropdown.get()
+        self.output_field.configure(font=(self.font_family, self.font_size))
+        self.output_field.tag_configure("bold", font=(self.font_family, self.font_size, "bold"))
+
+    def increase_font(self):
+        self.font_size += 1
+        self.output_field.configure(font=(self.font_family, self.font_size))
+        self.output_field.tag_configure("bold", font=(self.font_family, self.font_size, "bold"))
+
+    def decrease_font(self):
+        self.font_size = max(8, self.font_size - 1)
+        self.output_field.configure(font=(self.font_family, self.font_size))
+        self.output_field.tag_configure("bold", font=(self.font_family, self.font_size, "bold"))
+
+    def copy_last_response(self):
+        if self.last_ai_response:
+            self.clipboard_clear()
+            self.clipboard_append(self.last_ai_response)
+            self.update()
 
     def upload_file(self):
         file_path = filedialog.askopenfilename(
@@ -68,7 +116,8 @@ class App(tk.Tk):
                 elif file_path.endswith(".txt"):
                     self.context_attachment = extract_text_from_txt(file_path)
 
-                self.output_field.insert(tk.END, f"[Attached file: {file_path.split('/')[-1]}]\n")
+                filename = file_path.split("/")[-1]
+                self.output_field.insert(tk.END, f"[Attached file: {filename}]\n", "bold")
                 self.output_field.see(tk.END)
 
             except Exception as e:
@@ -82,17 +131,16 @@ class App(tk.Tk):
         self.input_field.delete(0, tk.END)
         self.chat_history.append(f"User: {input_text}")
 
-        # Create prompt with file context
         prompt = ""
         if self.context_attachment:
             prompt += f"[Context from attached file]\n{self.context_attachment.strip()}\n\n"
 
         prompt += "\n".join(self.chat_history) + "\nAssistant:"
 
-        self.output_field.insert(tk.END, "You: " + input_text + "\nAI: ")
+        self.output_field.insert(tk.END, "You: ", "bold")
+        self.output_field.insert(tk.END, input_text + "\nAI: ", "bold")
         self.output_field.see(tk.END)
 
-        # Start background streaming
         threading.Thread(target=self.stream_response, args=(prompt,), daemon=True).start()
 
     def stream_response(self, prompt):
@@ -120,8 +168,22 @@ class App(tk.Tk):
         except Exception as e:
             print(f"Error: {e}")
         finally:
+            self.last_ai_response = assistant_reply
             self.chat_history.append(f"Assistant: {assistant_reply}")
             self.output_field.after(0, self.output_field.insert, tk.END, "\n\n")
+
+    def export_chat(self):
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt")]
+        )
+        if file_path:
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    for line in self.chat_history:
+                        f.write(line + "\n\n")
+            except Exception as e:
+                print(f"Export failed: {e}")
 
 if __name__ == "__main__":
     app = App()
