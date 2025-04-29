@@ -25,7 +25,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Alfred AI")
-        self.state("zoomed")
+        self.state("zoomed")  # Fullscreen but with window controls
 
         self.chat_history = []
         self.context_attachment = ""
@@ -37,27 +37,36 @@ class App(tk.Tk):
         toolbar = tk.Frame(self)
         toolbar.pack(fill=tk.X, padx=10, pady=(5, 0))
 
-        spacer = tk.Label(toolbar, text="")
-        spacer.pack(side=tk.LEFT, expand=True)
+        # Model selection dropdown
+        self.model_var = tk.StringVar()
+        self.model_dropdown = ttk.Combobox(toolbar, textvariable=self.model_var, values=[
+            "llama2-uncensored:7b", "llama3.1:8b"
+        ], state="readonly", width=22)
+        self.model_dropdown.set("llama3.1:8b")  # Default model
+        self.model_dropdown.pack(side=tk.RIGHT, padx=(5, 0))
 
-        self.export_button = tk.Button(toolbar, text="Export Chat", command=self.export_chat)
-        self.export_button.pack(side=tk.RIGHT, padx=(5, 0))
-
-        self.copy_button = tk.Button(toolbar, text="Copy Last Response", command=self.copy_last_response)
-        self.copy_button.pack(side=tk.RIGHT, padx=(5, 0))
-
-        decrease_btn = tk.Button(toolbar, text="A-", command=self.decrease_font)
-        decrease_btn.pack(side=tk.RIGHT, padx=(5, 0))
-
-        increase_btn = tk.Button(toolbar, text="A+", command=self.increase_font)
-        increase_btn.pack(side=tk.RIGHT, padx=(5, 0))
-
+        # Font style dropdown
         self.font_dropdown = ttk.Combobox(toolbar, values=[
             "Comic Sans MS", "Segoe UI", "Times New Roman", "Arial", "Calibri", "sans-serif"
         ], state="readonly")
         self.font_dropdown.set(self.font_family)
         self.font_dropdown.pack(side=tk.RIGHT, padx=(5, 0))
         self.font_dropdown.bind("<<ComboboxSelected>>", self.change_font)
+
+        # Font size buttons
+        decrease_btn = tk.Button(toolbar, text="A-", command=self.decrease_font)
+        decrease_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        increase_btn = tk.Button(toolbar, text="A+", command=self.increase_font)
+        increase_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        # Copy last response button
+        self.copy_button = tk.Button(toolbar, text="Copy Last Response", command=self.copy_last_response)
+        self.copy_button.pack(side=tk.RIGHT, padx=(5, 0))
+
+        # Export chat button
+        self.export_button = tk.Button(toolbar, text="Export Chat", command=self.export_chat)
+        self.export_button.pack(side=tk.RIGHT, padx=(5, 0))
 
         # === Output Field ===
         self.output_field = scrolledtext.ScrolledText(self, wrap=tk.WORD, font=(self.font_family, self.font_size))
@@ -149,7 +158,7 @@ class App(tk.Tk):
             with requests.post(
                 "http://localhost:11434/api/generate",
                 json={
-                    "model": "llama3.1:8b",
+                    "model": self.model_var.get(),
                     "prompt": prompt,
                     "stream": True
                 },

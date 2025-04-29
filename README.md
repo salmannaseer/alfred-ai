@@ -53,3 +53,7 @@ Added font styles
 Added font size buttons to increase/decrease size
 Added button to copy last response
 Added button to export chat
+
+### Update 1.2
+
+Added ability to switch between different models. 
